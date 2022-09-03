@@ -1,5 +1,9 @@
 <?php
 define("DEFAULT_TRANSLATION_ID", 456);
+define("CACHE_SECURITY_KEY_SIMILAR", "similar_surahsofthekitaab");
+define("CACHE_SECURITY_KEY_VERSE", "verse_surahsofthekitaab");
+define("CACHE_SECURITY_KEY_SURAH_INFO", "surah_info_surahsofthekitaab");
+define("CACHE_EXPIRY", 157788000); // Cache expires in 5 years
 
 function total_verses_above_cut_off ($translationId=0, $surahNumber=0, $ayaNumber=0, $method, $cutOff=0) {
 	$query = "SELECT * FROM `tbl_similarity_score` WHERE `translation_id` = $translationId AND `surah_number` = $surahNumber AND `aya_number` = $ayaNumber AND `$method` > $cutOff";

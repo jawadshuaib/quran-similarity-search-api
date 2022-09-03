@@ -8,6 +8,8 @@ if ($_SERVER['HTTP_HOST']=="localhost") {
 	error_reporting(E_ALL);	
 }
 
+/* Make sure to properly add your own vendor autoload path */
+require_once '../vendor/autoload.php';
 
 include_once ("../common.php");
 
