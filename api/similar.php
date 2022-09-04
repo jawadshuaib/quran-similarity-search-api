@@ -32,12 +32,18 @@ $cacheConfig = new \Phpfastcache\Drivers\Files\Config([
 $cache = \Phpfastcache\CacheManager::getInstance('Files');
 
 
+// $inst = 'similar.php?translation='.$translationId.'&surah_number='.$surahNumber.'&aya_number='.$ayaNumber."&results=".$results."&method=".$method;
+// $cache->deleteItem($inst);
+// echo "deleted $inst <br />";
+// echo "so next time it should load from the database";
+
 // Get instance of the cache
 $cachedInstance = $cache->getItem('similar.php?translation='.$translationId.'&surah_number='.$surahNumber.'&aya_number='.$ayaNumber."&results=".$results."&method=".$method);
 $isCached = !(is_null ($cachedInstance->get ()));
 
 // Fetch from database if not cached
 if (!$isCached) {
+	// echo "DATABASE";
 	$error=false;
 	if (!$error) {
 		if (!does_this_translation_exist ($translationId)) {
@@ -151,7 +157,7 @@ if (!$isCached) {
 	}
 }
 // Fetch from the cache
-else {		
+else {			
     $json = $cachedInstance->get();
 }
 
