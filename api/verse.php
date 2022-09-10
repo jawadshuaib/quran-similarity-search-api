@@ -10,6 +10,8 @@ $surahNumber = !isset($_GET['surah_number']) ? 0 : intval ($_GET['surah_number']
 $ayaNumber = !isset($_GET['aya_number']) ? 0 : intval ($_GET['aya_number']);
 $translationId = !isset($_GET['translation']) ? pick_default_translation_id () : intval ($_GET['translation']);
 
+$tid = is_translation_id_arabic_simple ($translationId) === true ? pick_default_translation_id () : $translationId;
+
 // Cache adapter for phpFastCache
 // Usaged: https://grohsfabian.com/how-to-use-php-caching-with-mysql-queries-to-improve-performance/
 $cacheConfig = new \Phpfastcache\Drivers\Files\Config([
@@ -21,6 +23,12 @@ $cacheConfig = new \Phpfastcache\Drivers\Files\Config([
 ]);
 \Phpfastcache\CacheManager::setDefaultConfig($cacheConfig);
 $cache = \Phpfastcache\CacheManager::getInstance('Files');
+
+
+// Delete cache
+// $inst = 'verse.php?translation='.$translationId.'&surah_number='.$surahNumber.'&aya_number='.$ayaNumber;
+// $cache->deleteItem($inst);
+
 
 // Get instance of the cache
 $cachedInstance = $cache->getItem('verse.php?translation='.$translationId.'&surah_number='.$surahNumber.'&aya_number='.$ayaNumber);
@@ -53,7 +61,7 @@ if (!$isCached) {
 
 		$query = "SELECT q.text, t.translation 
 				  FROM `tbl_quran` AS q, `tbl_formatted_translation` AS t
-				  WHERE q.`surah_number` = t.`surah_number` AND q.`aya_number` = t.`aya_number` AND q.`surah_number` = $surahNumber AND q.`aya_number`= $ayaNumber AND t.`translation_id` = $translationId";
+				  WHERE q.`surah_number` = t.`surah_number` AND q.`aya_number` = t.`aya_number` AND q.`surah_number` = $surahNumber AND q.`aya_number`= $ayaNumber AND t.`translation_id` = $tid";
 				  
 		list ($arabicText, $englishText) = r (get_properties ($query));
 

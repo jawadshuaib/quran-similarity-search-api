@@ -6,24 +6,32 @@ http://localhost/quran/api/similar.php?translation=456&surah_number=10&aya_numbe
 */
 include_once ("api.php");
 
-define ("DEFAULT_SIMILARITY_METHOD", "cosine_similarity_translation");
 define("DEFAULT_NUMBER_OF_RESULTS", 5);
 define("MAX_RESULTS_ALLOWED", 50);
 define("MIN_RESULTS_ALLOWED", DEFAULT_NUMBER_OF_RESULTS);
-define("CUT_OFF", 0.5);
+
+// Turn cache on or off
+// This is useful for testing purposes
+$cacheOn = true;
 
 $surahNumber = !isset($_GET['surah_number']) ? 0 : intval ($_GET['surah_number']);
 $ayaNumber = !isset($_GET['aya_number']) ? 0 : intval($_GET['aya_number']);
 $results = !isset($_GET['results']) ? pick_default_number_of_results () : intval ($_GET['results']);
 $translationId = !isset($_GET['translation']) ? pick_default_translation_id () : intval ($_GET['translation']);
-$method = pick_method (!isset($_GET['method']) ? NULL : $_GET['method']);
+$method = !isset($_GET['method']) ? DEFAULT_SIMILARITY_METHOD : pick_method ($_GET['method']);
+$cutOff = get_cut_off ($method);
 
+// If Arabic method is requested, then resort to the default English translation for it
+$tid = is_translation_id_arabic_simple ($translationId) === true ? pick_default_translation_id () : $translationId;
 
 // Cache adapter for phpFastCache
 // Usaged: https://grohsfabian.com/how-to-use-php-caching-with-mysql-queries-to-improve-performance/
+// Get the cache key for Arabic. It is a good idea to keep the english and arabic methods separate
+// for performance purposes
+$cacheKey = is_translation_id_arabic_simple ($translationId) === true ? CACHE_SECURITY_KEY_SIMILAR_ARABIC : CACHE_SECURITY_KEY_SIMILAR;
 $cacheConfig = new \Phpfastcache\Drivers\Files\Config([
     'path' => realpath(__DIR__) . '/cache',
-    'securityKey' => CACHE_SECURITY_KEY_SIMILAR,
+    'securityKey' => $cacheKey,
     'preventCacheSlams' => true,
     'cacheSlamsTimeout' => 20,
     'secureFileManipulation' => true
@@ -32,14 +40,17 @@ $cacheConfig = new \Phpfastcache\Drivers\Files\Config([
 $cache = \Phpfastcache\CacheManager::getInstance('Files');
 
 
-// $inst = 'similar.php?translation='.$translationId.'&surah_number='.$surahNumber.'&aya_number='.$ayaNumber."&results=".$results."&method=".$method;
+// $inst = 'similar.php?translation='.$translationId.'&surah_number='.$surahNumber.'&aya_number='.$ayaNumber.'&method='.$method;
 // $cache->deleteItem($inst);
-// echo "deleted $inst <br />";
-// echo "so next time it should load from the database";
+// exit;
 
-// Get instance of the cache
-$cachedInstance = $cache->getItem('similar.php?translation='.$translationId.'&surah_number='.$surahNumber.'&aya_number='.$ayaNumber."&results=".$results."&method=".$method);
-$isCached = !(is_null ($cachedInstance->get ()));
+if ($cacheOn) {	
+	// Get instance of the cache
+	$cachedInstance = $cache->getItem('similar.php?translation='.$translationId.'&surah_number='.$surahNumber.'&aya_number='.$ayaNumber."&results=".$results."&method=".$method);
+	$isCached = !(is_null ($cachedInstance->get ()));
+} else {
+	$isCached = false;
+}
 
 // Fetch from database if not cached
 if (!$isCached) {
@@ -49,6 +60,13 @@ if (!$isCached) {
 		if (!does_this_translation_exist ($translationId)) {
 			$error=true;
 			$reason = "Incorrect id provided for the translation.";
+		}
+	}
+
+	if (!$error) {
+		if (!does_translation_for_this_method_exist ($translationId, $method)) {
+			$error=true;
+			$reason = "The method chosen for this translation does not exist. Please pick a different method.";
 		}
 	}
 
@@ -68,15 +86,15 @@ if (!$isCached) {
 
 	if (!$error) {
 		
-		$totalVersesAboveCutOff = total_verses_above_cut_off ($translationId, $surahNumber, $ayaNumber, $method, CUT_OFF);
+		$totalVersesAboveCutOff = total_verses_above_cut_off ($translationId, $surahNumber, $ayaNumber, $method, $cutOff);
 		
 		// If no similar verses were found above the cut off or if the total verses above cut off are too few, then just fetch 
 		// the requested number of results as long as they do not exceed the maximum results allowed		
 		if (($totalVersesAboveCutOff===0) || ($totalVersesAboveCutOff < MIN_RESULTS_ALLOWED)) {		
 			$results = $results > MAX_RESULTS_ALLOWED ? MAX_RESULTS_ALLOWED : $results;	
 		}
-		// If we found plenty of similar verses above cut off, then results should pull all of them
-		// Again, we don't want to show too many results so keep them under the max allowed
+		// If we found plenty of similar verses above cut off, then results should pull all of them		
+		// Again, we don't want too many results so we cut it off at a certain point
 		else {
 			$results = $totalVersesAboveCutOff > MAX_RESULTS_ALLOWED ? MAX_RESULTS_ALLOWED : $totalVersesAboveCutOff;
 		}
@@ -103,20 +121,24 @@ if (!$isCached) {
 			if (($surahNumber == $similarSurahNumber) && ($ayaNumber == $similarAyaNumber)) {
 				continue;
 			}
-		
+				
 			// Quranic verse
-			$quranicText = get_quranic_text ($similarSurahNumber, $similarAyaNumber);
+			list ($quranicText, $minimal, $arabicLemmatized, $arabicLemmatizedWithoutStopWords) = get_quranic_text ($similarSurahNumber, $similarAyaNumber);
 			// Translation of Surah and Aya
-			$translation = get_translation ($translationId, $similarSurahNumber, $similarAyaNumber);
+			$translation = get_translation ($tid, $similarSurahNumber, $similarAyaNumber);
 
-			$similar .= '{ 
-				"surah_number": '.$similarSurahNumber.', 
-				"aya_number": '.$similarAyaNumber.',
-				"quranic_text": "'.$quranicText.'",
-				"translation": "'.$translation.'",
-				"similarity": '.$theQ['similarity'].'
-			},
-			'; 
+			$similar .= '
+	{ 
+		"surah_number": '.$similarSurahNumber.', 
+		"aya_number": '.$similarAyaNumber.',
+		"quranic_text": "'.$quranicText.'",		
+		"minimal": "'.$minimal.'",
+		"arabic_lemmatized": "'.$arabicLemmatized.'",
+		"arabic_lemmatized_without_stop_words": "'.$arabicLemmatizedWithoutStopWords.'",
+		"translation": "'.$translation.'",
+		"similarity": '.$theQ['similarity'].'
+	},
+	'; 
 		}	
 
 		// Remove last comma
@@ -131,33 +153,38 @@ if (!$isCached) {
 		list ($translationName, $translationSource) = r (get_properties ("SELECT name, source FROM `tbl_translation_info` WHERE translation_id = $translationId"));
 
 		// Quranic verse
-		$quranicText = get_quranic_text ($surahNumber, $ayaNumber);
-		// Translation of Surah and Aya
-		$translation = get_translation ($translationId, $surahNumber, $ayaNumber);
+		list ($quranicText, $minimal, $arabicLemmatized, $arabicLemmatizedWithoutStopWords) = get_quranic_text ($surahNumber, $ayaNumber);		
+		$translation = get_translation ($tid, $surahNumber, $ayaNumber);
 
 		$json = '{
-		"info": {
-			"name": "'.$translationName.'",						
-			"source": "'.$translationSource.'",
-			"method": "'.$method.'",
-			"surah_number": "'.$surahNumber.'",
-			"aya_number": "'.$ayaNumber.'",
-			"quranic_text": "'.$quranicText.'",						
-			"translation": "'.$translation.'"
-		},
-		"similar": [
-			'.$similar.'
-		]
-	}';
+"info": {
+	"name": "'.$translationName.'",						
+	"source": "'.$translationSource.'",
+	"method": "'.$method.'",
+	"surah_number": "'.$surahNumber.'",
+	"aya_number": "'.$ayaNumber.'",
+	"quranic_text": "'.$quranicText.'",
+	"minimal": "'.$minimal.'",
+	"arabic_lemmatized": "'.$arabicLemmatized.'",
+	"arabic_lemmatized_without_stop_words": "'.$arabicLemmatizedWithoutStopWords.'",
+	"translation": "'.$translation.'"
+},
+"similar": [
+	'.$similar.'
+]
+}';
 
-	    /* Save the json data to the cache */
-	    $cache->save(
-	        $cachedInstance->set($json)->expiresAfter(CACHE_EXPIRY)
-	    );	
+		if ($cacheOn) {
+		    // Save the json data to the cache
+		    $cache->save(
+		        $cachedInstance->set($json)->expiresAfter(CACHE_EXPIRY)
+		    );				
+		}
+
 	}
 }
 // Fetch from the cache
-else {			
+else {				
     $json = $cachedInstance->get();
 }
 
@@ -166,16 +193,5 @@ echo $json;
 
 function pick_default_number_of_results () {
 	return DEFAULT_NUMBER_OF_RESULTS;
-}
-
-function pick_method ($method) {
-	if ($method == "formatted")	
-		return "cosine_similarity_translation_formatted";
-	elseif ($method == "tokenized")
-		return "cosine_similarity_translation_tokenized";
-	elseif ($method == "without_stop_words")
-		return "cosine_similarity_translation_without_stop_words";	
-	else
-		return DEFAULT_SIMILARITY_METHOD;
 }
 ?>
