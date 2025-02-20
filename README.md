@@ -33,14 +33,14 @@ This project is a PHP-based backend for the Quran Similarity Search application.
 
 1. **Clone the repository:**
 
-   ```
+   ```bash
    git clone https://github.com/jawadshuaib/quran-similarity-search-api.git
    cd quran-similarity-search-api
    ```
 
 2. **Install dependencies:**
 
-   ```
+   ```bash
    composer install
    ```
 
@@ -51,7 +51,7 @@ This project is a PHP-based backend for the Quran Similarity Search application.
 
 4. **Run the PHP server:**
 
-   ```
+   ```bash
    php -S localhost:8000
    ```
 
