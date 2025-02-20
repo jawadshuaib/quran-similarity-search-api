@@ -2,6 +2,8 @@
 
 This API provides access to querying a MySQL database for finding similar verses in the Quran. Front-end for this code is available at https://github.com/jawadshuaib/quran-similarity-search
 
+You will need to run the database for the API to work. Database files are hosted on [OneDrive](https://1drv.ms/f/c/0aa3b65c8f9c5ace/Es5anI9ctqMggArJLgAAAAABYJd6AyqCYnMd4ZXuoU8VpA?e=hpKNM0)
+
 ## Overview
 
 This project is a PHP-based backend for the Quran Similarity Search application. It allows users to find linguistically similar verses in the Quran by querying a MySQL database. The API provides several endpoints to fetch information about surahs, verses, and their similarities.
