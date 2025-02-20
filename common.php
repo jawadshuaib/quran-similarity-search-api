@@ -9,7 +9,32 @@ define("CACHE_SECURITY_KEY_SIMILAR_ARABIC", "similar_arabic_surahsofthekitaab");
 define("CACHE_SECURITY_KEY_VERSE", "verse_surahsofthekitaab");
 define("CACHE_SECURITY_KEY_SURAH_INFO", "surah_info_surahsofthekitaab");
 define("CACHE_SECURITY_KEY_KEYWORDS", "keywords_surahsofthekitaab");
+define("CACHE_SECURITY_LEMMA_KEYWORDS", "lemma_surahsofthekitaab");
+define("CACHE_SECURITY_LEMMA_RELATIVES_KEYWORDS", "lemma_relatives_surahsofthekitaab");
+define("CACHE_SECURITY_GOOGLE_TRANSLATE", "google_translate");
 define("CACHE_EXPIRY", 157788000); // Cache expires in 5 years
+
+function does_lemma_exist ($lemma) {
+	$query = "SELECT * FROM `tbl_translated_words` WHERE lemmatized_word = '$lemma'";	
+	return count_rows ($query) > 0 ? true : false;
+}
+
+function get_quranic_words_for_lemma ($lemma) {
+	$query = "SELECT quranic_word FROM `tbl_translated_words` WHERE lemmatized_word = '$lemma'";
+	list ($quranicWords) = get_properties ($query);
+	return $quranicWords;
+}
+
+function has_lemma_for_quranic_word ($quranicWord) {
+	$query = "SELECT * FROM `tbl_translated_words` WHERE quranic_word = '$quranicWord'";
+	return count_rows ($query) > 0 ? true : false;	
+}
+
+function get_lemma_for_quranic_word ($quranicWord) {
+	$query = "SELECT lemmatized_word FROM `tbl_translated_words` WHERE quranic_word = '$quranicWord'";
+	list ($lemmatizedWord) = r (get_properties ($query));
+	return $lemmatizedWord;
+}
 
 function is_translation_id_arabic_simple ($translationId=0) {
 	return $translationId === TRANSLATION_ID_ARABIC_SIMPLE ? true : false;
