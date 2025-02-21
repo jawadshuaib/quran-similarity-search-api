@@ -51,6 +51,8 @@ This project is a PHP-based backend for the Quran Similarity Search application.
    - Create a MySQL database and import the provided SQL schema.
    - Update the database configuration in `connection/connection.php` and `connection/pwd/pwd.php` with your database credentials.
 
+   - You will also need Google Translate API key credentials. This API helps translate any selected Arabic words into English. It is not strictly necessary, but very helpful for phrase by phrase translation.
+
 4. **Run the PHP server:**
 
    ```bash
